@@ -11,21 +11,22 @@ from array2gif import write_gif
 n_evaluations = 20
 n_agents = 2
 n_envs = 4
-n_timesteps = 8000000
+n_timesteps = 800000
 
 env = knights_archers_zombies_v7.parallel_env()
 player1 = env.possible_agents[0]
-player2 = env.possible_agents[0]
+player2 = env.possible_agents[1]
 
-
-def invert_agent_indication(obs, agent):
+def invert_agent_indication(obs, obs_space, agent):
     if len(obs.shape) == 2:
         obs = obs.reshape(obs.shape+(1,))
     if agent == player1 or agent == player2:
         obs2 = obs
     else:
         obs2 = 255-obs
-    return np.concatenate([obs, obs2], axis=2)
+    result = np.concatenate([obs, obs2], axis=2)
+    return result
+    #return np.concatenate([obs, obs2], axis=2)
 
 
 def image_transpose(env):
@@ -35,6 +36,7 @@ def image_transpose(env):
 
 
 env = knights_archers_zombies_v7.parallel_env()
+env = ss.black_death_v2(env)
 env = ss.color_reduction_v0(env, mode='B')
 env = ss.resize_v0(env, x_size=84, y_size=84)
 env = ss.frame_stack_v1(env, 3)
@@ -45,6 +47,7 @@ env = VecMonitor(env)
 env = image_transpose(env)
 
 eval_env = knights_archers_zombies_v7.parallel_env()
+eval_env = ss.black_death_v2(eval_env)
 eval_env = ss.color_reduction_v0(eval_env, mode='B')
 eval_env = ss.resize_v0(eval_env, x_size=84, y_size=84)
 eval_env = ss.frame_stack_v1(eval_env, 3)
