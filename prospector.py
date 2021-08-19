@@ -7,7 +7,8 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.preprocessing import is_image_space, is_image_space_channels_first
 
 import numpy as np
-from array2gif import write_gif
+from PIL import Image
+import matplotlib.pyplot as plt
 
 n_evaluations = 20
 n_agents = 7
@@ -51,6 +52,16 @@ eval_callback = EvalCallback(eval_env, best_model_save_path='./logs/prospector_v
 model.learn(total_timesteps=n_timesteps, callback=eval_callback)
 
 model = PPO.load("./logs/prospector_v4/best_model")
+evaluations = np.load('./logs/prospector_v4/evaluations.npz')
+timesteps = evaluations['timesteps']
+rewards = np.array(evaluations['results'])
+rewards = rewards.mean(axis = 1)
+
+# draw learning curve
+plt.plot(timesteps, rewards)
+plt.xlabel("Timesteps")
+plt.ylabel("Rewards")
+plt.savefig("./logs/prospector_v4/learning_curve.png")
 
 mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=10)
 
@@ -76,9 +87,10 @@ while True:
         render_env.step(action)
         i += 1
         if i % (len(render_env.possible_agents)) == 0:
-            obs_list.append(np.transpose(render_env.render(mode='rgb_array'), axes=(1, 0, 2)))
+            obs_list.append(render_env.render(mode='rgb_array'))
     render_env.close()
     break
 
 print('Writing gif')
-write_gif(obs_list, './logs/prospector_v4/prospector_v4.gif', fps=15)
+imgs = [Image.fromarray(img) for img in obs_list]
+imgs[0].save('./logs/prospector_v4/prospector_v4.gif', save_all=True, append_images=imgs[1:], duration=60, loop=0)
