@@ -42,7 +42,7 @@ class InvertColorIndicator(AgentIndicator):
     def apply(self, obs, obs_space, agent):
         high = obs_space.high.copy()
         if len(high.shape) == 2:
-            high = np.repeat(high[:,:,np.newaxis], 1, axis=2)
+            high = high[:,:,None]
         return high - obs if self.agent_indicator_mapping[agent] is 'invert' else obs
 
 # Binary representation of an agent by its index in the env.
@@ -117,12 +117,11 @@ class AgentIndicatorWrapper:
     def apply(self, obs, obs_space, agent):
         nobs = obs.copy()
         if len(nobs.shape) == 2:
-            nobs = np.repeat(nobs[:, :, np.newaxis], 1, axis=2)
-
-        res = nobs.copy() if self.use_original_obs else []
+            nobs = nobs[:,:,None]
+        res = nobs.copy() if self.use_original_obs else None
         for indicator in self.indicators:
             ind = indicator.apply(nobs, obs_space, agent)
             if len(ind.shape) == 2:
-                ind = np.repeat(ind[:, :, np.newaxis], 1, axis=2)
-            res = np.concatenate([res, ind], axis=0 if is_image_space_channels_first(nobs) else 2)
+                ind = ind[:,:,None]
+            res = ind if res is None else np.concatenate([res, ind], axis=0 if is_image_space_channels_first(nobs) else 2)
         return res
