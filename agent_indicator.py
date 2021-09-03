@@ -18,8 +18,11 @@ def is_image_space_channels_first(obs):
         print("Treating image space as channels-last, while second dimension was smallest of the three.")
     return smallest_dimension == 0
 
-def convert_three_dim(obs):
-    return obs[:,:,None] if len(obs.shape) == 2 else obs
+def convert_three_dim(obs, channels_first=True):
+    if len(obs.shape) == 2:
+        return obs[None,:,:] if channels_first else obs[:,:,None]
+    else:
+        return obs
 
 # Base class of agent indicators
 # @ type: This class basically handles cases where there are only two types of agents in the env.
@@ -51,8 +54,14 @@ class BinaryIndicator(AgentIndicator):
 
     def apply(self, obs, obs_space, agent):
         super().apply(obs, obs_space, agent)
-        res = obs_space.high.copy() if self.type in agent else obs_space.low.copy()
-        return convert_three_dim(res)
+        high = obs_space.high.max()
+        low = obs_space.low.min()
+        if is_image_space_channels_first(obs):
+            channel_shape = obs.shape[1:]
+        else:
+            channel_shape = obs.shape[:2]
+        channel = np.full(channel_shape, high if self.type in agent else low)
+        return convert_three_dim(channel, is_image_space_channels_first(obs))
 
 # Use different geometric pattern to represent different type of agent
 #        Type 0 : 1 0 1 0 1 0 1 0 ...
@@ -65,24 +74,30 @@ class GeometricPatternIndicator(AgentIndicator):
     def build_patterns(self, env):
         self.patterns = {}        
         for agent in env.possible_agents:
-            high = env.observation_spaces[agent].high
-            low = env.observation_spaces[agent].low
+            high = env.observation_spaces[agent].high.max()
+            low = env.observation_spaces[agent].low.min()
             shape = env.observation_spaces[agent].shape
+            if len(shape) == 3:
+                if is_image_space_channels_first(env.observation_spaces[agent]):
+                    shape = shape[1:]
+                else:
+                    shape = shape[:2]
             pattern = np.zeros(shape)
 
             cnt = 0
             for i in range(shape[0]):
                 for j in range(shape[1]):
                     if cnt % 2 == 0:
-                        pattern[i][j] = high[i][j] if self.type in agent else low[i][j]
+                        pattern[i][j] = high if self.type in agent else low
                     else:
-                        pattern[i][j] = low[i][j] if self.type in agent else high[i][j]
+                        pattern[i][j] = low if self.type in agent else high
                     cnt += 1
-            self.patterns[agent] = convert_three_dim(pattern)
+            self.patterns[agent] = pattern
 
     def apply(self, obs, obs_space, agent):
         super().apply(obs, obs_space, agent)
-        return self.patterns[agent]
+        pattern = self.patterns[agent]
+        return pattern[None,:,:] if is_image_space_channels_first(obs) else pattern[:,:,None]
 
 class AgentIndicatorWrapper:
     def __init__(self, indicator, use_original_obs=True):
@@ -90,7 +105,7 @@ class AgentIndicatorWrapper:
         self.indicator = indicator
 
     def apply(self, obs, obs_space, agent):
-        nobs = convert_three_dim(obs.copy())
+        nobs = convert_three_dim(obs.copy(), True)
         ind = self.indicator.apply(nobs, obs_space, agent)
         return np.concatenate([nobs, ind], axis = 0 if is_image_space_channels_first(nobs) else 2) if self.use_original_obs else ind
 
