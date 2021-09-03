@@ -32,7 +32,7 @@ elif args.indicator_name == 'binary':
 elif args.indicator_name == 'geometric':
     indicator = agent_indicator.GeometricPatternIndicator(render_env, indicator_type)
 agent_indicator_wrapper = agent_indicator.AgentIndicatorWrapper(indicator, not args.replace_obs)
-render_env = ss.observation_lambda_v0(render_env, agent_indicator_wrapper.apply)
+render_env = ss.observation_lambda_v0(render_env, agent_indicator_wrapper.apply, agent_indicator_wrapper.apply_space)
 
 render_env.reset()
 
